@@ -59,18 +59,31 @@ class FirebaseExcelExporter {
         rowIndex++;
       }
 
-      // Generate Excel file
-      final bytes = excel.save();
-      final blob = html.Blob([bytes],
+      // Encode Excel file
+      List<int>? fileBytes = excel.encode();
+      if (fileBytes == null) {
+        throw Exception("Failed to encode Excel file.");
+      }
+
+      // Create a Blob from the bytes
+      final blob = html.Blob([fileBytes],
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-      // Create a download link and trigger the download
+      // Generate a download URL
       final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
 
-      // Revoke the Blob URL to release resources
+      // Create an anchor element and trigger the download
+      final anchor = html.document.createElement('a') as html.AnchorElement
+        ..href = url
+        ..style.display = 'none'
+        ..download = fileName;
+      html.document.body!.children.add(anchor);
+
+      // Trigger the download
+      anchor.click();
+
+      // Clean up by removing the anchor and revoking the URL
+      anchor.remove();
       html.Url.revokeObjectUrl(url);
     } catch (e) {
       throw Exception('Error exporting to Excel: $e');
