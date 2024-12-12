@@ -1,31 +1,27 @@
-library firebase_excel_export;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
-import 'package:universal_html/html.dart' as html;
 
 class FirebaseExcelExporter {
   /// Exports a Firestore collection to an Excel file.
   ///
   /// [collectionName] - The name of the Firestore collection to fetch data from.
+  /// [headers] - The list of headers for the Excel file.
+  /// [mapper] - A function that maps Firestore document data to a list of values for each row.
   /// [fileName] - The name of the resulting Excel file (default: 'export.xlsx').
-  static Future<void> exportToExcel({
+  static Future<Excel> exportToExcel({
     required String collectionName,
-    String fileName = 'export.xlsx',
+    required List<String> headers,
+    required List<dynamic> Function(Map<String, dynamic>) mapper,
   }) async {
     try {
       // Fetch data from Firestore
       QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection(collectionName).get();
+      await FirebaseFirestore.instance.collection(collectionName).get();
 
       if (snapshot.docs.isEmpty) {
         throw Exception(
             'No data found in the Firestore collection: $collectionName');
       }
-
-      // Determine dynamic headers from the first document
-      final firstDoc = snapshot.docs.first.data() as Map<String, dynamic>;
-      final headers = firstDoc.keys.toList();
 
       // Initialize Excel
       var excel = Excel.createExcel();
@@ -42,33 +38,20 @@ class FirebaseExcelExporter {
       int rowIndex = 1;
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        final row = mapper(data);
 
-        for (int i = 0; i < headers.length; i++) {
-          final value = data[headers[i]];
+        for (int i = 0; i < row.length; i++) {
           sheetObject
-                  .cell(CellIndex.indexByColumnRow(
-                      columnIndex: i, rowIndex: rowIndex))
-                  .value =
-              value != null
-                  ? TextCellValue(value.toString())
-                  : TextCellValue(''); // Changed here
+              .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex))
+              .value = row[i] != null
+              ? TextCellValue(row[i].toString())
+              : TextCellValue('');
         }
         rowIndex++;
       }
 
-      // Generate Excel file
-      final bytes = excel.save();
-      final blob = html.Blob([bytes],
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-
-      // Create a download link and trigger the download
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-
-      // Revoke the Blob URL to release resources
-      html.Url.revokeObjectUrl(url);
+      // Return the Excel object for further use
+      return excel;
     } catch (e) {
       throw Exception('Error exporting to Excel: $e');
     }
