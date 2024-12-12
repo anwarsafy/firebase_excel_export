@@ -1,6 +1,6 @@
 name: firebase_excel_export
 description: "A Flutter package to export Firestore collections to Excel with customizable headers and data mapping."
-version: 0.0.3
+version: 0.0.5
 homepage:
 
 environment:

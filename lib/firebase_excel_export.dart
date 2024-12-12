@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
+import 'package:universal_html/html.dart' as html;
 
 class FirebaseExcelExporter {
   /// Exports a Firestore collection to an Excel file.
@@ -8,15 +9,23 @@ class FirebaseExcelExporter {
   /// [headers] - The list of headers for the Excel file.
   /// [mapper] - A function that maps Firestore document data to a list of values for each row.
   /// [fileName] - The name of the resulting Excel file (default: 'export.xlsx').
-  static Future<Excel> exportToExcel({
+  /// [queryBuilder] - An optional function to customize the Firestore query.
+  static Future<void> exportToExcel({
     required String collectionName,
     required List<String> headers,
     required List<dynamic> Function(Map<String, dynamic>) mapper,
+    String fileName = 'export.xlsx',
+    Query Function(Query query)? queryBuilder,
   }) async {
     try {
+      // Build Firestore query
+      Query query = FirebaseFirestore.instance.collection(collectionName);
+      if (queryBuilder != null) {
+        query = queryBuilder(query);
+      }
+
       // Fetch data from Firestore
-      QuerySnapshot snapshot =
-      await FirebaseFirestore.instance.collection(collectionName).get();
+      QuerySnapshot snapshot = await query.get();
 
       if (snapshot.docs.isEmpty) {
         throw Exception(
@@ -50,8 +59,19 @@ class FirebaseExcelExporter {
         rowIndex++;
       }
 
-      // Return the Excel object for further use
-      return excel;
+      // Generate Excel file
+      final bytes = excel.save();
+      final blob = html.Blob([bytes],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+      // Create a download link and trigger the download
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+
+      // Revoke the Blob URL to release resources
+      html.Url.revokeObjectUrl(url);
     } catch (e) {
       throw Exception('Error exporting to Excel: $e');
     }
