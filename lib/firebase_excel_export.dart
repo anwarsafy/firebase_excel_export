@@ -2,6 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
 import 'package:universal_html/html.dart' as html;
 
+/// A utility class for exporting Firestore collections to an Excel file.
+///
+/// This class allows customization of headers and data mapping, making it
+/// flexible for various use cases.
+///
+/// Example usage:
+/// ```dart
+/// final exporter = FirebaseExcelExporter();
+/// await exporter.exportCollection(
+///   collectionPath: 'users',
+///   filePath: '/path/to/save/file.xlsx',
+///   headers: ['Name', 'Email', 'Age'],
+///   dataMapper: (doc) => [doc['name'], doc['email'], doc['age']],
+/// );
+/// ```
 class FirebaseExcelExporter {
   /// Exports a Firestore collection to an Excel file.
   ///
@@ -51,10 +66,12 @@ class FirebaseExcelExporter {
 
         for (int i = 0; i < row.length; i++) {
           sheetObject
-              .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex))
-              .value = row[i] != null
-              ? TextCellValue(row[i].toString())
-              : TextCellValue('');
+                  .cell(CellIndex.indexByColumnRow(
+                      columnIndex: i, rowIndex: rowIndex))
+                  .value =
+              row[i] != null
+                  ? TextCellValue(row[i].toString())
+                  : TextCellValue('');
         }
         rowIndex++;
       }
